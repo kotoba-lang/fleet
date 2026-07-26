@@ -1,0 +1,12 @@
+;; This repository's entry in the kotoba.repository-role-rules taxonomy.
+{:schema "kotoba.repository-role-rules.v0"
+ :this-repo
+ {:name "fleet"
+  :tier :t6
+  :role :placement
+  :must-not [:define-language-semantics
+             :compile-kir
+             :implement-a-tender
+             :grant-itself-authority]
+  :depends-on [{:repo "kototama" :role :tender-execution}]}}
+

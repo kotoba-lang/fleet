@@ -1,0 +1,13 @@
+[Unit]
+Description=Run Kotoba fleet recovery on a schedule
+Requires=fleet-daemon.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=fleet-daemon.service
+
+[Install]
+WantedBy=timers.target
