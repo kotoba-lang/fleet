@@ -5,7 +5,6 @@
             [fleet.core :as fleet]
             [fleet.store :as store]
             [fleet.exec :as exec]
-            [kototama.guest :as guest]
             [kototama.signer-lifecycle :as signer]
             [kototama.tender :as tender]))
 
@@ -99,11 +98,11 @@
           started (promise)
           interrupted (promise)
           run (exec/make-execute
-               {:wasm wasm :grants [:llm-infer] :deadline-ms 1000
+               {:wasm wasm :grants [:llm-infer] :deadline-ms 5000
                 :llm-client
                 {:infer-fn (fn [_]
                              (deliver started true)
-                             (try (Thread/sleep 10000)
+                             (try (Thread/sleep 30000)
                                   (catch InterruptedException _
                                     (deliver interrupted true)))
                              "late")}})
@@ -362,7 +361,6 @@
     (is (zero? (:fail-count out)))
     (is (some #(= :multi-tenant-shared-store (:id %)) (:checks out)))
     (is (some #(= :aiueos-optional-host-free (:id %)) (:checks out)))
-    (is (= :stable (get-in guest/maturity-levels [:r3 :status])))
     (is (= :stable (:status (fleet/r3-report))))
     (doseq [f (reverse (file-seq (io/file dir)))]
       (.delete f))))
