@@ -3,12 +3,12 @@
         org.clojure/data.json {:mvn/version "2.5.0"}
         io.github.kotoba-lang/security
         {:git/url "https://github.com/kotoba-lang/security.git"
-         :git/sha "23d2e0b6b521318adb43230a5a5c21c76adb738c"}
+         :git/sha "f409dbade106df076cefe640781b12db558f4135"}
         ;; Fleet is T6 placement. Execution remains owned by the T3 tender;
         ;; this one-way dependency is the boundary that avoids a cycle.
         io.github.kotoba-lang/kototama
         {:git/url "https://github.com/kotoba-lang/kototama.git"
-         :git/sha "6459eb083df54082fd9c67de8bed108ee64cef76"}}
+         :git/sha "40502c3cf4836c385a8399ce3e8d8e389f9a64dd"}}
  :aliases
  {:cli {:main-opts ["-m" "fleet.cli"]}
   :test {:extra-paths ["test"]
