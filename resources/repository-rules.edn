@@ -8,5 +8,5 @@
              :compile-kir
              :implement-a-tender
              :grant-itself-authority]
-  :depends-on [{:repo "kototama" :role :tender-execution}]}}
-
+  :depends-on ["kotoba-lang/security"
+               {:repo "kototama" :role :tender-execution}]}}
