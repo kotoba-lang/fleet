@@ -8,7 +8,7 @@
         ;; this one-way dependency is the boundary that avoids a cycle.
         io.github.kotoba-lang/kototama
         {:git/url "https://github.com/kotoba-lang/kototama.git"
-         :git/sha "ff84bf10db375c2506967fe1021a384abf73ef80"}}
+         :git/sha "74146a896dfae72b8eb407acf6f5717e0d2fd2e1"}}
  :aliases
  {:cli {:main-opts ["-m" "fleet.cli"]}
   :test {:extra-paths ["test"]
