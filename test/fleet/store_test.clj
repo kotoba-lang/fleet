@@ -41,6 +41,7 @@
    :tamaki.capability/role :control-guest
    :tamaki.capability/abi {:namespace "actor:host" :version 0}
    :tamaki.capability/imports #{}
+   :tamaki.capability/repositories []
    :tamaki.capability/grants #{}
    :tamaki.capability/limits {:allow-write-imports? false
                               :allow-secret-imports? false
