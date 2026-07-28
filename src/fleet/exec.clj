@@ -5,13 +5,53 @@
    the lease's grants + fuel limit. Checkpoints after each successful step
    when a store is provided."
   (:require [clojure.java.io :as io]
+            [clojure.edn :as edn]
             [clojure.string :as str]
             [kototama.aiueos-adapter :as aiueos]
             [kototama.contract :as contract]
+            [kototama.tamaki-contract :as tamaki-contract]
             [fleet.core :as fleet]
             [fleet.fence :as fence]
             [fleet.store :as store]
             [kototama.tender :as tender]))
+
+(defn read-capability-envelope
+  "Read a Tamaki capability envelope from EDN. EDN only; never eval input."
+  [path]
+  (with-open [reader (java.io.PushbackReader. (io/reader path))]
+    (edn/read {:eof nil} reader)))
+
+(defn- canonical-value [value]
+  (cond
+    (map? value)
+    (into (sorted-map-by #(compare (pr-str %1) (pr-str %2)))
+          (map (fn [[k v]] [k (canonical-value v)]))
+          value)
+
+    (set? value)
+    (mapv canonical-value (sort-by pr-str value))
+
+    (sequential? value)
+    (mapv canonical-value value)
+
+    :else value))
+
+(defn capability-envelope-digest
+  "Stable SHA-256 identity for an admitted envelope. This is an audit
+   identifier, not a signature or a secret."
+  [envelope]
+  (let [payload (.getBytes (pr-str (canonical-value envelope)) "UTF-8")
+        digest (.digest (java.security.MessageDigest/getInstance "SHA-256") payload)]
+    (format "%064x" (java.math.BigInteger. 1 digest))))
+
+(defn- contract-lock
+  [envelope admission]
+  {:version (:tamaki.capability/version envelope)
+   :digest (capability-envelope-digest envelope)
+   :actor (:actor admission)
+   :grants (vec (sort (:grants admission)))
+   :limits (get-in admission [:host-caps :limits])
+   :effects (vec (sort (:effects admission)))})
 
 (defn load-wasm
   "Load wasm bytes from path or resource string."
@@ -245,7 +285,7 @@
    Returns full result map including :lease-id :path (final checkpoint)."
   [tenant guest wasm-path & {:keys [budget grants store max-ticks ttl-ms
                                     use-aiueos? limits trust policy-overlay
-                                    node-id fence?]
+                                    node-id fence? lease-meta caps-extra execute]
                              :or {max-ticks 3 ttl-ms 300000 use-aiueos? false
                                   trust :verified fence? true}}]
   (let [store (or store (store/default-store))
@@ -265,7 +305,8 @@
                                  :meta {:wasm (str wasm-path)
                                         :guest (str guest)
                                         :tenant (str tenant)
-                                        :grant-source (:source resolved)})
+                                        :grant-source (:source resolved)
+                                        :placement lease-meta})
         ;; Seed registry from existing disk checkpoints (shared store multi-node)
         prior-keys (try (store/list-checkpoint-keys store) (catch Exception _ []))
         prior (load-merged-registry (take 50 prior-keys) store)
@@ -286,7 +327,9 @@
         result (run-lease! reg id {:wasm wasm-path
                                    :store store
                                    :max-ticks max-ticks
-                                   :grants g})
+                                   :grants g
+                                   :caps-extra (merge {:limits limits} caps-extra)
+                                   :execute execute})
         final (store/save-checkpoint!
                (:registry result) store
                {:key (str "final-" id)
@@ -304,6 +347,39 @@
            :node-id node
            :claim-reason (get-in claimed [:claim :reason] :no-fence))))
 
+(defn bootstrap-tamaki-run!
+  "Admit a Tamaki envelope, seal its authority into the lease, then run.
+
+   The envelope is independently checked by Kototama before Fleet creates a
+   lease. Fleet uses exactly the admitted grants and limits; callers cannot
+   add grants through this entry point. Only a digest and the minimum
+   resumable authority boundary are checkpointed—never the actor spec,
+   objectives, issue content, tokens, or secrets."
+  [envelope wasm-path & {:keys [tenant budget store max-ticks ttl-ms node-id
+                                fence? execute]
+                         :or {tenant "tamaki" max-ticks 3 ttl-ms 300000
+                              fence? true}}]
+  (let [admission (tamaki-contract/admit! envelope)
+        lock (contract-lock envelope admission)
+        actor (:actor admission)
+        limits (:limits lock)
+        out (bootstrap-and-run!
+             tenant actor wasm-path
+             :budget budget
+             :grants (:grants lock)
+             :limits limits
+             :caps-extra {:limits limits}
+             :store store
+             :max-ticks max-ticks
+             :ttl-ms ttl-ms
+             :node-id node-id
+             :fence? fence?
+             :execute execute
+             :lease-meta {:tamaki-capability lock})]
+    (assoc out
+           :capability-contract
+           (select-keys lock [:version :digest :actor :effects]))))
+
 (defn resume-lease!
   "Continue an existing lease from a restored registry.
 
@@ -319,6 +395,18 @@
   (let [lease (fleet/get-lease registry lease-id)
         _ (when-not lease
             (throw (ex-info "fleet-exec: unknown lease" {:lease-id lease-id})))
+        lock (get-in lease [:kototama.fleet/meta :placement :tamaki-capability])
+        locked-grants (some-> lock :grants vec)
+        locked-limits (:limits lock)
+        _ (when (and lock grants (not= (set grants) (set locked-grants)))
+            (throw (ex-info "fleet-exec: capability grants are sealed"
+                            {:lease-id lease-id
+                             :contract-digest (:digest lock)})))
+        requested-limits (:limits caps-extra)
+        _ (when (and lock requested-limits (not= requested-limits locked-limits))
+            (throw (ex-info "fleet-exec: capability limits are sealed"
+                            {:lease-id lease-id
+                             :contract-digest (:digest lock)})))
         node (str (or node-id (fence/node-id)))
         wasm-path (lease-wasm lease wasm)
         claimed (if fence?
@@ -348,8 +436,11 @@
                                       {:wasm wasm-path
                                        :store store
                                        :max-ticks max-ticks
-                                       :grants (or grants (:kototama.fleet/grants lease'))
-                                       :caps-extra caps-extra
+                                       :grants (or locked-grants grants
+                                                   (:kototama.fleet/grants lease'))
+                                       :caps-extra (if lock
+                                                     {:limits locked-limits}
+                                                     caps-extra)
                                        :execute execute}))
             final (when store
                     (store/save-checkpoint!

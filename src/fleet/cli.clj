@@ -71,6 +71,23 @@
       :use-aiueos? use-aiueos?})
     {:ok? true}))
 
+(defn cmd-tamaki-run [envelope-path wasm-path]
+  (let [envelope (exec/read-capability-envelope envelope-path)
+        out (exec/bootstrap-tamaki-run!
+             envelope wasm-path
+             :store (store/disk-store (root))
+             :max-ticks 2
+             :budget {:fuel 5000000 :ticks 5})]
+    (pp/pprint
+     {:ok? true
+      :lease-id (:lease-id out)
+      :stopped (:stopped out)
+      :result (get-in out [:last :result])
+      :checkpoint-key (:checkpoint-key out)
+      :steps (count (:steps out))
+      :capability-contract (:capability-contract out)})
+    {:ok? true}))
+
 (defn cmd-fleet-list []
   (let [keys (store/list-checkpoint-keys (store/disk-store (root)))]
     (pp/pprint {:ok? true :root (root) :keys keys :count (count keys)})
@@ -202,6 +219,9 @@
           "fleet-run" (if-let [wasm (first more)]
                         (apply cmd-fleet-run wasm (rest more))
                         (usage-error "usage: fleet-run <guest.wasm> [--use-aiueos]"))
+          "tamaki-run" (if (and (first more) (second more))
+                         (cmd-tamaki-run (first more) (second more))
+                         (usage-error "usage: tamaki-run <capability-envelope.edn> <guest.wasm>"))
           "fleet-list" (cmd-fleet-list)
           "fleet-status" (cmd-fleet-status)
           "fleet-audit" (cmd-fleet-audit)
@@ -218,9 +238,8 @@
           "fleet-gate" (cmd-fleet-gate)
           (do
             (println "fleet — durable T6 placement for Kotoba tenders")
-            (println "  fleet-gate | fleet-demo | fleet-run | fleet-list")
+            (println "  fleet-gate | fleet-demo | fleet-run | tamaki-run | fleet-list")
             (println "  fleet-status | fleet-audit | fleet-resume")
             (println "  fleet-recover | fleet-daemon | fleet-fence-demo")
             {:ok? true}))]
     (System/exit (if (:ok? result) 0 1))))
-

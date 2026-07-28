@@ -1,6 +1,7 @@
 (ns fleet.store-test
   (:require [clojure.java.io :as io]
             [clojure.java.shell :as shell]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [fleet.core :as fleet]
             [fleet.store :as store]
@@ -32,6 +33,23 @@
     (with-open [o (io/output-stream f)]
       (.write o ^bytes bytes))
     (.getPath f)))
+
+(def ^:private host-free-tamaki-envelope
+  {:tamaki.capability/version 1
+   :tamaki.capability/actor ":test/host-free"
+   :tamaki.capability/substrate :kototama-wasm
+   :tamaki.capability/role :control-guest
+   :tamaki.capability/abi {:namespace "actor:host" :version 0}
+   :tamaki.capability/imports #{}
+   :tamaki.capability/grants #{}
+   :tamaki.capability/limits {:allow-write-imports? false
+                              :allow-secret-imports? false
+                              :max-http-posts 0
+                              :max-http-fetches 0
+                              :max-llm-infers 0
+                              :max-memory-pages 4
+                              :allowed-url-prefixes []}
+   :tamaki.capability/effect-policy {}})
 
 (deftest disk-checkpoint-roundtrip
   (let [dir (str "tmp/kototama-fleet-test-" (System/currentTimeMillis))
@@ -170,6 +188,73 @@
     (is (= 120 (get-in out [:last :result :result])))
     (let [reg' (store/load-checkpoint! (:checkpoint-key out) s)]
       (is (seq (fleet/tenant-leases reg' "tenant-x"))))
+    (doseq [f (reverse (file-seq (io/file dir)))]
+      (.delete f))))
+
+(deftest tamaki-envelope-is-admitted-and-sealed
+  (let [s (store/memory-store)
+        execute (fn [_] {:ok? true :result :contract-ran :fuel-used 1})
+        out (exec/bootstrap-tamaki-run!
+             host-free-tamaki-envelope "not-loaded.wasm"
+             :store s
+             :execute execute
+             :max-ticks 1
+             :budget {:fuel 100 :ticks 3}
+             :node-id "contract-node")
+        reg (store/load-checkpoint! (:checkpoint-key out) s)
+        lease (fleet/get-lease reg (:lease-id out))
+        lock (get-in lease [:kototama.fleet/meta :placement
+                            :tamaki-capability])]
+    (is (= :contract-ran (get-in out [:last :result :result])))
+    (is (= 1 (:version lock)))
+    (is (= ":test/host-free" (:actor lock)))
+    (is (= 64 (count (:digest lock))))
+    (is (= [] (:grants lock)))
+    (is (= (:digest lock)
+           (get-in out [:capability-contract :digest])))
+    (is (not (str/includes? (pr-str ((:dump s))) "tamaki.capability/imports"))
+        "checkpoint stores the sealed boundary, not the source envelope")
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"capability grants are sealed"
+         (exec/resume-lease! reg (:lease-id out)
+                             {:wasm "not-loaded.wasm"
+                              :store s
+                              :execute execute
+                              :grants [:http-post]
+                              :node-id "contract-node"})))))
+
+(deftest rejected-tamaki-envelope-has-no-placement-side-effect
+  (let [s (store/memory-store)
+        invalid (assoc host-free-tamaki-envelope
+                       :tamaki.capability/substrate :shell)]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"rejected Tamaki capability envelope"
+         (exec/bootstrap-tamaki-run!
+          invalid "not-loaded.wasm"
+          :store s
+          :execute (fn [_] {:ok? true})
+          :budget {:fuel 100 :ticks 1})))
+    (is (empty? ((:dump s)))
+        "admission happens before lease, audit, or checkpoint writes")))
+
+(deftest tamaki-contract-survives-disk-checkpoint
+  (let [dir (str "tmp/fleet-tamaki-contract-" (System/currentTimeMillis))
+        s (store/disk-store dir)
+        out (exec/bootstrap-tamaki-run!
+             host-free-tamaki-envelope "not-loaded.wasm"
+             :store s
+             :execute (fn [_] {:ok? true :result :disk-ok :fuel-used 1})
+             :max-ticks 1
+             :budget {:fuel 100 :ticks 2}
+             :node-id "contract-node")
+        restored (store/load-checkpoint! (:checkpoint-key out) s)
+        lock (get-in (fleet/get-lease restored (:lease-id out))
+                     [:kototama.fleet/meta :placement :tamaki-capability])]
+    (is (= (:digest lock)
+           (get-in out [:capability-contract :digest])))
+    (is (= [] (:grants lock)))
     (doseq [f (reverse (file-seq (io/file dir)))]
       (.delete f))))
 
