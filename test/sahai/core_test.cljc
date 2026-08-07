@@ -1,6 +1,6 @@
-(ns fleet.core-test
+(ns sahai.core-test
   (:require [clojure.test :refer [deftest is testing]]
-            [fleet.core :as fleet]))
+            [sahai.core :as fleet]))
 
 (deftest lease-lifecycle
   (binding [fleet/*now-ms* 1000]

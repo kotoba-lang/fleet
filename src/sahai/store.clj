@@ -1,4 +1,4 @@
-(ns fleet.store
+(ns sahai.store
   "R3 checkpoint persistence: disk always; B2 optional via env or inject.
 
    Store shape (open map):
@@ -15,7 +15,7 @@
             [clojure.string :as str]
             [clojure.data.json :as json]
             [kotoba.security.effect :as effect]
-            [fleet.core :as fleet])
+            [sahai.core :as fleet])
   (:import (java.net URI URLEncoder)
            (java.net.http HttpClient HttpRequest HttpRequest$BodyPublishers
                           HttpResponse$BodyHandlers)
@@ -269,7 +269,7 @@
                      (catch Exception e
                        ;; disk succeeded; surface remote error as meta only
                        (binding [*out* *err*]
-                         (println "fleet.store: remote save failed:" (.getMessage e))))))
+                         (println "sahai.store: remote save failed:" (.getMessage e))))))
               p))
    :load! (fn [k]
             (or ((:load! disk) k)
