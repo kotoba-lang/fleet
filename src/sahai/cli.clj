@@ -1,10 +1,10 @@
-(ns fleet.cli
+(ns sahai.cli
   "Operational entry point for the fleet placement layer."
   (:require [clojure.pprint :as pp]
-            [fleet.core :as fleet]
-            [fleet.exec :as exec]
-            [fleet.fence :as fence]
-            [fleet.store :as store])
+            [sahai.core :as fleet]
+            [sahai.exec :as exec]
+            [sahai.fence :as fence]
+            [sahai.store :as store])
   (:gen-class))
 
 (defn- root []

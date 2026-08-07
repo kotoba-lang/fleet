@@ -1,7 +1,7 @@
-(ns fleet.fence-test
+(ns sahai.fence-test
   (:require [clojure.test :refer [deftest is testing]]
-            [fleet.core :as fleet]
-            [fleet.fence :as fence]))
+            [sahai.core :as fleet]
+            [sahai.fence :as fence]))
 
 (deftest higher-epoch-beats
   (let [a (fleet/make-lease "t" "g" :owner "a" :epoch 1)

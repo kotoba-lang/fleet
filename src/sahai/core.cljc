@@ -1,4 +1,4 @@
-(ns fleet.core
+(ns sahai.core
   "R3 stable (shared-store fleet ops): multi-tenant durable outer loop.
 
    Pure data — no threads, no network. Models the durable loop described in
@@ -232,7 +232,7 @@
   "Restore registry from checkpoint map. Validates schema version."
   [cp]
   (when-not (= 1 (:kototama.fleet/checkpoint-schema cp))
-    (throw (ex-info "fleet.core: unknown checkpoint schema"
+    (throw (ex-info "sahai.core: unknown checkpoint schema"
                     {:schema (:kototama.fleet/checkpoint-schema cp)})))
   (sweep-expired (:kototama.fleet/registry cp)))
 
@@ -332,8 +332,8 @@
    :not-yet ["Raft/Paxos multi-node consensus"
              "full aiueos fleet broker (all actor:host kinds as first-class policy)"]
    :stable-means "ops-ready local/shared-store fleet — NOT global consensus"
-   :api ['fleet.core 'fleet.store 'fleet.exec
-         'fleet.fence]
+   :api ['sahai.core 'sahai.store 'sahai.exec
+         'sahai.fence]
    :gate "clojure -M:cli fleet-gate"
    :staging "bash deploy/staging-smoke.sh"
    :notes ["Pure cljc core + JVM store/exec edges"

@@ -1,5 +1,5 @@
-(ns fleet.exec
-  "R3 edge: wire fleet.core run-loop-step → tender/run-report.
+(ns sahai.exec
+  "R3 edge: wire sahai.core run-loop-step → tender/run-report.
 
    execute-fn builds a tick executor that loads wasm bytes and runs under
    the lease's grants + fuel limit. Checkpoints after each successful step
@@ -10,9 +10,9 @@
             [kototama.aiueos-adapter :as aiueos]
             [kototama.contract :as contract]
             [kototama.tamaki-contract :as tamaki-contract]
-            [fleet.core :as fleet]
-            [fleet.fence :as fence]
-            [fleet.store :as store]
+            [sahai.core :as fleet]
+            [sahai.fence :as fence]
+            [sahai.store :as store]
             [kototama.tender :as tender]))
 
 (defn read-capability-envelope

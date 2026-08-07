@@ -1,4 +1,4 @@
-(ns fleet.fence
+(ns sahai.fence
   "Cross-node lease fencing skeleton (not Raft/Paxos).
 
    Pure data rules so multiple recovery daemons can share a checkpoint store
@@ -12,7 +12,7 @@
 
    Does NOT implement network consensus, leader election, or clock sync.
    Nodes must share wall-clock roughly and a shared store (disk NFS / B2)."
-  (:require [fleet.core :as fleet]))
+  (:require [sahai.core :as fleet]))
 
 (defn fence-key
   "Identity of a work unit for fencing (tenant + guest)."

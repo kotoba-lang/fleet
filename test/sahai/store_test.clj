@@ -1,11 +1,11 @@
-(ns fleet.store-test
+(ns sahai.store-test
   (:require [clojure.java.io :as io]
             [clojure.java.shell :as shell]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
-            [fleet.core :as fleet]
-            [fleet.store :as store]
-            [fleet.exec :as exec]
+            [sahai.core :as fleet]
+            [sahai.store :as store]
+            [sahai.exec :as exec]
             [kototama.signer-lifecycle :as signer]
             [kototama.tender :as tender]))
 

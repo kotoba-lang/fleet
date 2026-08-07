@@ -1,4 +1,8 @@
-# fleet
+# sahai
+
+**差配 — 誰にどこを貸すかを取り仕切る。** 借家の割り当てを差配する、
+のその語。旧名 `fleet`（2026-08-07 rename: bare な `fleet` が二つの org に
+在り、三つの repo が `fleet.*` namespace を主張していた）。
 
 Durable T6 placement for Kotoba tenders: multi-tenant leases, budgets,
 checkpoints, recovery, audit records, and epoch fencing.
@@ -10,11 +14,11 @@ semantics, authority policy, or distributed consensus.
 The persisted EDN schema intentionally retains `:kototama.fleet/*` keys so
 checkpoints written before the split remain readable. Code ownership moved to:
 
-- `fleet.core` — pure lease/budget/tick/checkpoint model
-- `fleet.store` — memory, disk, B2, and composite persistence
-- `fleet.fence` — shared-store epoch fencing (not Raft/Paxos)
-- `fleet.exec` — placement-to-tender bridge and R3 acceptance gate
-- `fleet.cli` — the ten fleet operational commands formerly in `kototama.cli`
+- `sahai.core` — pure lease/budget/tick/checkpoint model
+- `sahai.store` — memory, disk, B2, and composite persistence
+- `sahai.fence` — shared-store epoch fencing (not Raft/Paxos)
+- `sahai.exec` — placement-to-tender bridge and R3 acceptance gate
+- `sahai.cli` — the ten fleet operational commands formerly in `kototama.cli`
 
 ## Tamaki capability boundary
 
